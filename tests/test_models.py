@@ -1,4 +1,4 @@
-"""Tests for the Dixon-Coles model and odds de-vig math (no network)."""
+"""Tests for the Elo and Dixon-Coles models and odds de-vig math (no network)."""
 from __future__ import annotations
 
 import numpy as np
@@ -45,6 +45,29 @@ def test_dc_unknown_team_falls_back():
     m = DixonColesModel().fit(_toy_goals_df(), min_matches=3)
     p = m.match_probabilities("A", "Nonexistent")  # unknown -> league-average
     assert abs(sum(p.values()) - 1.0) < 1e-9
+
+
+def test_elo_probabilities_sum_to_one():
+    from wc_trader.model.elo import EloModel
+    probs = EloModel().match_probabilities("A", "B")
+    assert set(probs) == {Outcome.HOME, Outcome.DRAW, Outcome.AWAY}
+    assert abs(sum(probs.values()) - 1.0) < 1e-9
+
+
+def test_elo_home_advantage_suppressed_at_neutral():
+    from wc_trader.model.elo import EloModel
+    m = EloModel(ratings={"A": 1500, "B": 1500})
+    home = m.match_probabilities("A", "B", neutral=False)
+    neutral = m.match_probabilities("A", "B", neutral=True)
+    assert home[Outcome.HOME] > home[Outcome.AWAY]                 # home edge applies
+    assert abs(neutral[Outcome.HOME] - neutral[Outcome.AWAY]) < 1e-9  # symmetric at neutral
+
+
+def test_elo_update_moves_ratings():
+    from wc_trader.model.elo import EloModel
+    m = EloModel(ratings={"A": 1500, "B": 1500})
+    m.update("A", "B", 3, 0, neutral=True)
+    assert m.rating("A") > 1500 > m.rating("B")
 
 
 def test_devig_normalizes_to_one():

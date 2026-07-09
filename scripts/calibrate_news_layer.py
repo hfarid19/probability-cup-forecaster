@@ -20,17 +20,21 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from groll_eval import TRAIN_YEARS, build_frame, build_snapshots, fit_abilities, wc_matches  # noqa: E402
-from paper_eval import rf_lambda_table                                  # noqa: E402
-from wc_trader.data.fifa_rank import (                                  # noqa: E402
-    RankLookup, fetch_fifa_rankings, fetch_prewc2026_snapshot, load_fifa_rankings)
 from wc_trader.data.lineups import fetch_lineups, load_lineups          # noqa: E402
 from wc_trader.data.results import load_results                        # noqa: E402
-from wc_trader.data.wc_meta import iso3                                 # noqa: E402
-from wc_trader.data.worldbank import IndicatorLookup, fetch_indicator   # noqa: E402
-from wc_trader.model.groll_rf import HybridRF                           # noqa: E402
+from wc_trader.experiment import (                                      # noqa: E402
+    TRAIN_YEARS,
+    build_frame,
+    build_snapshots,
+    covariate_lookups,
+    wc_matches,
+)
+from wc_trader.model.groll_rf import HybridRF, rf_lambda_table          # noqa: E402
 from wc_trader.model.lineup_adjust import (                             # noqa: E402
-    LambdaGridAdapter, NewsFeatureBuilder, fit_coefficients)
+    LambdaGridAdapter,
+    NewsFeatureBuilder,
+    fit_coefficients,
+)
 
 CAL_YEARS = (2018, 2022)
 
@@ -57,14 +61,7 @@ def samples_for(base, recs) -> list[dict]:
 
 def main() -> None:
     df = load_results()
-    fetch_fifa_rankings()
-    fetch_prewc2026_snapshot()
-    ranks = RankLookup(load_fifa_rankings())
-    universe = sorted({t for y in TRAIN_YEARS + [2026] for m in [wc_matches(df, y)]
-                       for t in set(m.home_team) | set(m.away_team)})
-    codes = sorted({c for t in universe if (c := iso3(t))})
-    gdp = IndicatorLookup(fetch_indicator(codes, "gdp_pc"))
-    pop = IndicatorLookup(fetch_indicator(codes, "population"))
+    ranks, gdp, pop = covariate_lookups(df)
     missing: dict = {}
 
     frames, dcs = {}, {}

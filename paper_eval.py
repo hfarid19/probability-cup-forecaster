@@ -20,48 +20,32 @@ from pathlib import Path
 
 import pandas as pd
 
-from groll_eval import (
-    TRAIN_YEARS,
-    build_frame,
-    build_snapshots,
-    fit_abilities,
-    load_market_probs,
-    wc_matches,
-    wc_start,
-)
 from wc_trader.backtest.bracket import advance_prob_from_3way, solve_bracket
 from wc_trader.backtest.metrics import (
+    CLASSES,
     accuracy,
     avg_likelihood,
     log_loss,
+    match_outcome,
     paired_logloss_bootstrap,
     rps,
 )
-from wc_trader.backtest.simulator import CLASSES, match_outcome
 from wc_trader.backtest.tournament import dc_sampler, parse_calendar, rf_sampler, simulate
-from wc_trader.data.fifa_rank import (
-    RankLookup,
-    fetch_fifa_rankings,
-    fetch_prewc2026_snapshot,
-    load_fifa_rankings,
-)
 from wc_trader.data.results import fetch_results, load_results
-from wc_trader.data.wc_meta import iso3
-from wc_trader.data.worldbank import IndicatorLookup, fetch_indicator
-from wc_trader.model.elo import EloModel
-from wc_trader.model.groll_rf import HybridRF, match_rows
+from wc_trader.experiment import (
+    TRAIN_YEARS,
+    build_frame,
+    build_snapshots,
+    covariate_lookups,
+    frozen_elo,
+    load_market_probs,
+    wc_matches,
+)
+from wc_trader.model.groll_rf import HybridRF, match_rows, rf_lambda_table
 from wc_trader.types import Outcome
 
 QF_PAIRS_2026 = [("France", "Morocco"), ("Spain", "Belgium"),
                  ("Norway", "England"), ("Argentina", "Switzerland")]
-
-
-def frozen_elo(df: pd.DataFrame, year: int) -> EloModel:
-    elo = EloModel()
-    freeze = pd.Timestamp(wc_start(year))
-    for r in df[df.date < freeze].itertuples(index=False):
-        elo.update(r.home_team, r.away_team, r.home_score, r.away_score, bool(r.neutral))
-    return elo
 
 
 def metric_block(probs: list[dict], outcomes: list[str]) -> dict:
@@ -96,20 +80,6 @@ def eval_tournament(df, year, frame, dc, elo, rf, market: dict | None) -> dict:
     return {"probs": probs, "outcomes": outcomes}
 
 
-def rf_lambda_table(rf: HybridRF, snaps: dict) -> dict[tuple, tuple[float, float]]:
-    """Batch-predict expected goals for every ordered pair (one sklearn call)."""
-    teams = sorted(snaps)
-    rows, pairs = [], []
-    for a in teams:
-        for b in teams:
-            if a == b:
-                continue
-            rows.extend(match_rows(f"{a}|{b}", a, b, None, None, snaps))
-            pairs.append((a, b))
-    lam = rf.predict_lambda(pd.DataFrame(rows))
-    return {p: (float(lam[2 * i]), float(lam[2 * i + 1])) for i, p in enumerate(pairs)}
-
-
 def sim_tables(spec, dc, rf, snaps, n_sims: int) -> dict:
     dc_res, dc_finals = simulate(spec, dc_sampler(dc), n_sims=n_sims, seed=42)
     rf_res, rf_finals = simulate(spec, rf_sampler(rf_lambda_table(rf, snaps)),
@@ -131,22 +101,13 @@ def main() -> None:
     if not args.no_refresh:
         fetch_results(force=True)
     df = load_results()
-    fetch_fifa_rankings()
-    fetch_prewc2026_snapshot()
-    ranks = RankLookup(load_fifa_rankings())
-
-    all_years = TRAIN_YEARS + [2026]
-    universe = sorted({t for y in all_years for m in [wc_matches(df, y)]
-                       for t in set(m.home_team) | set(m.away_team)})
-    codes = sorted({c for t in universe if (c := iso3(t))})
-    gdp = IndicatorLookup(fetch_indicator(codes, "gdp_pc"))
-    pop = IndicatorLookup(fetch_indicator(codes, "population"))
+    ranks, gdp, pop = covariate_lookups(df)
     missing: dict = {}
 
     print("Building per-tournament frames (freeze-date covariates)...")
     frames: dict[int, pd.DataFrame] = {}
     dcs: dict[int, object] = {}
-    for y in all_years:
+    for y in TRAIN_YEARS + [2026]:
         frames[y], dcs[y] = build_frame(df, y, ranks, gdp, pop, missing)
         print(f"  WC {y}: {len(frames[y]) // 2} matches")
 
@@ -211,8 +172,7 @@ def main() -> None:
             wc26["bootstrap"][f"{a} - {b}"] = paired_logloss_bootstrap(
                 ev26["probs"][a], ev26["probs"][b], ev26["outcomes"])
     spec26 = parse_calendar("data/raw/fifa_calendar_2026.json")
-    teams26 = spec26.teams
-    snaps26 = build_snapshots(teams26, 2026, dcs[2026], ranks, gdp, pop, missing)
+    snaps26 = build_snapshots(spec26.teams, 2026, dcs[2026], ranks, gdp, pop, missing)
     print("  simulating 2026 tournament (pre-tournament view)...")
     wc26["sim"] = sim_tables(spec26, dcs[2026], rf26, snaps26, args.sims)
 

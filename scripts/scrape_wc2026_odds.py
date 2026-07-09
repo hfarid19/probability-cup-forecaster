@@ -4,7 +4,7 @@ OddsPortal renders its results client-side from an encrypted feed, so plain HTTP
 work; this drives your installed Chrome over the DevTools protocol: navigate to the
 results pages, scroll to force lazy rendering, click through pagination, and extract
 rows from the live DOM. Output joins onto the martj42 results (96/96 played matches at
-time of writing) and lands in data/raw/wc2026_odds.csv, which groll_eval.py picks up
+time of writing) and lands in data/raw/wc2026_odds.csv, which paper_eval.py picks up
 automatically as the "Market" benchmark.
 
     python scripts/scrape_wc2026_odds.py

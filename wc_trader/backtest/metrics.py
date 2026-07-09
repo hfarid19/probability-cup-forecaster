@@ -1,74 +1,40 @@
-"""Calibration & accuracy metrics for probabilistic match predictions.
+"""Scoring for probabilistic match forecasts.
 
-A model can be accurate yet badly calibrated (its 70%s don't happen 70% of the time),
-and miscalibration is what bleeds money in betting. So we score with BOTH proper scoring
-rules (log-loss, Brier) and a reliability curve.
+Forecasts are dicts over the ordered outcome classes HOME/DRAW/AWAY; a model can be
+accurate yet badly calibrated, so proper scoring rules (log-loss, Brier, RPS) matter
+more than the classification rate.
 """
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 
 EPS = 1e-15
+CLASSES = ("HOME", "DRAW", "AWAY")
+
+
+def match_outcome(home_score: int, away_score: int) -> str:
+    if home_score > away_score:
+        return "HOME"
+    if home_score < away_score:
+        return "AWAY"
+    return "DRAW"
 
 
 def log_loss(probs: list[dict], outcomes: list[str]) -> float:
     """Mean negative log-likelihood of the realized outcomes. Lower is better."""
-    total = 0.0
-    for p, y in zip(probs, outcomes):
-        total += -math.log(max(EPS, p[y]))
-    return total / len(outcomes)
+    return sum(-math.log(max(EPS, p[y])) for p, y in zip(probs, outcomes)) / len(outcomes)
 
 
-def brier_score(probs: list[dict], outcomes: list[str], classes: tuple[str, ...]) -> float:
+def brier_score(probs: list[dict], outcomes: list[str],
+                classes: tuple[str, ...] = CLASSES) -> float:
     """Multiclass Brier score: mean squared error vs one-hot truth. Lower is better."""
-    total = 0.0
-    for p, y in zip(probs, outcomes):
-        total += sum((p[c] - (1.0 if c == y else 0.0)) ** 2 for c in classes)
-    return total / len(outcomes)
+    return sum(sum((p[c] - (1.0 if c == y else 0.0)) ** 2 for c in classes)
+               for p, y in zip(probs, outcomes)) / len(outcomes)
 
 
 def accuracy(probs: list[dict], outcomes: list[str]) -> float:
     """Share of matches where the argmax-probability class was the actual outcome."""
-    hits = sum(1 for p, y in zip(probs, outcomes) if max(p, key=p.get) == y)
-    return hits / len(outcomes)
-
-
-@dataclass
-class ReliabilityBin:
-    lo: float
-    hi: float
-    n: int
-    mean_predicted: float
-    observed_freq: float
-
-
-def reliability_curve(probs: list[dict], outcomes: list[str], classes: tuple[str, ...],
-                      n_bins: int = 10) -> list[ReliabilityBin]:
-    """Pool all (predicted_prob, hit) pairs across classes into probability bins.
-
-    A well-calibrated model has mean_predicted ≈ observed_freq in every bin.
-    """
-    edges = [i / n_bins for i in range(n_bins + 1)]
-    buckets: list[list[tuple[float, int]]] = [[] for _ in range(n_bins)]
-    for p, y in zip(probs, outcomes):
-        for c in classes:
-            pr = p[c]
-            idx = min(n_bins - 1, int(pr * n_bins))
-            buckets[idx].append((pr, 1 if c == y else 0))
-
-    out: list[ReliabilityBin] = []
-    for i, bucket in enumerate(buckets):
-        if not bucket:
-            continue
-        preds = [pr for pr, _ in bucket]
-        hits = [h for _, h in bucket]
-        out.append(ReliabilityBin(
-            lo=edges[i], hi=edges[i + 1], n=len(bucket),
-            mean_predicted=sum(preds) / len(preds),
-            observed_freq=sum(hits) / len(hits),
-        ))
-    return out
+    return sum(1 for p, y in zip(probs, outcomes) if max(p, key=p.get) == y) / len(outcomes)
 
 
 def avg_likelihood(probs: list[dict], outcomes: list[str]) -> float:
@@ -80,7 +46,7 @@ def avg_likelihood(probs: list[dict], outcomes: list[str]) -> float:
 
 
 def rps(probs: list[dict], outcomes: list[str],
-        order: tuple[str, ...] = ("HOME", "DRAW", "AWAY")) -> float:
+        order: tuple[str, ...] = CLASSES) -> float:
     """Mean ranked probability score over ORDERED outcomes (home win > draw > away win).
 
     RPS = 1/(K-1) * Σ_k (cumulative_predicted_k − cumulative_observed_k)².
@@ -120,12 +86,3 @@ def paired_logloss_bootstrap(probs_a: list[dict], probs_b: list[dict], outcomes:
         "ci_high": boot_means[int(0.975 * n_boot)],
         "n": n,
     }
-
-
-def base_rate_baseline(outcomes: list[str], classes: tuple[str, ...]) -> dict:
-    """The trivial predictor: always predict the overall frequency of each class.
-
-    Any real model MUST beat this on log-loss to claim it has skill.
-    """
-    n = len(outcomes)
-    return {c: outcomes.count(c) / n for c in classes}

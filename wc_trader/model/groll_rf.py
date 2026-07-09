@@ -128,3 +128,17 @@ class HybridRF:
     def importances(self) -> pd.Series:
         return pd.Series(self._model.feature_importances_, index=feature_columns()) \
                  .sort_values(ascending=False)
+
+
+def rf_lambda_table(rf: HybridRF, snaps: dict) -> dict[tuple, tuple[float, float]]:
+    """Batch-predict expected goals for every ordered team pair (one sklearn call)."""
+    teams = sorted(snaps)
+    rows, pairs = [], []
+    for a in teams:
+        for b in teams:
+            if a == b:
+                continue
+            rows.extend(match_rows(f"{a}|{b}", a, b, None, None, snaps))
+            pairs.append((a, b))
+    lam = rf.predict_lambda(pd.DataFrame(rows))
+    return {p: (float(lam[2 * i]), float(lam[2 * i + 1])) for i, p in enumerate(pairs)}
