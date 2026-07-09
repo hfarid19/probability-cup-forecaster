@@ -1,0 +1,26 @@
+[project]
+name = "wc-trader"
+version = "0.1.0"
+description = "Directional, model-based trading system for World Cup soccer markets on the Betfair Exchange"
+requires-python = ">=3.11"
+dependencies = [
+    "betfairlightweight>=2.20",
+    "pandas>=2.0",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "pyyaml>=6.0",
+    "scikit-learn>=1.4",
+    "loguru>=0.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.4"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

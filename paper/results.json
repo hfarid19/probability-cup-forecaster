@@ -1,0 +1,633 @@
+{
+ "meta": {
+  "n_sims": 20000,
+  "train_years": [
+   1998,
+   2002,
+   2006,
+   2010,
+   2014,
+   2018,
+   2022
+  ],
+  "note": "all covariates frozen at each tournament's start"
+ },
+ "loo": {
+  "per_year": {
+   "1998": {
+    "Hybrid RF": {
+     "class_rate": 0.5,
+     "likelihood": 0.4306056687412078,
+     "rps": 0.1737094566883013,
+     "log_loss": 0.9450199326624988
+    },
+    "Dixon-Coles": {
+     "class_rate": 0.546875,
+     "likelihood": 0.44138574738624153,
+     "rps": 0.16799855701552546,
+     "log_loss": 0.907727453115387
+    },
+    "Elo": {
+     "class_rate": 0.53125,
+     "likelihood": 0.4156539837095157,
+     "rps": 0.18337954400739512,
+     "log_loss": 0.9709535297479341
+    }
+   },
+   "2002": {
+    "Hybrid RF": {
+     "class_rate": 0.515625,
+     "likelihood": 0.40949022550227254,
+     "rps": 0.21028372186286967,
+     "log_loss": 1.0098212675719827
+    },
+    "Dixon-Coles": {
+     "class_rate": 0.46875,
+     "likelihood": 0.39352789095436586,
+     "rps": 0.2036356271848159,
+     "log_loss": 1.0000176387513997
+    },
+    "Elo": {
+     "class_rate": 0.484375,
+     "likelihood": 0.3779594921798937,
+     "rps": 0.2183804348586747,
+     "log_loss": 1.0338800371483656
+    }
+   },
+   "2006": {
+    "Hybrid RF": {
+     "class_rate": 0.5625,
+     "likelihood": 0.4430601933729092,
+     "rps": 0.17938493586338494,
+     "log_loss": 0.9098044553243645
+    },
+    "Dixon-Coles": {
+     "class_rate": 0.640625,
+     "likelihood": 0.44599086084457784,
+     "rps": 0.16808249592362545,
+     "log_loss": 0.8778015525307722
+    },
+    "Elo": {
+     "class_rate": 0.609375,
+     "likelihood": 0.4336784673358681,
+     "rps": 0.1816276037203736,
+     "log_loss": 0.9260198445249285
+    }
+   },
+   "2010": {
+    "Hybrid RF": {
+     "class_rate": 0.53125,
+     "likelihood": 0.4222237059431658,
+     "rps": 0.19369596330826572,
+     "log_loss": 0.9667376645258379
+    },
+    "Dixon-Coles": {
+     "class_rate": 0.546875,
+     "likelihood": 0.41967965522392237,
+     "rps": 0.18702166398335116,
+     "log_loss": 0.9457985973562982
+    },
+    "Elo": {
+     "class_rate": 0.53125,
+     "likelihood": 0.42265708984441064,
+     "rps": 0.19448944365984658,
+     "log_loss": 0.9802385307366352
+    }
+   },
+   "2014": {
+    "Hybrid RF": {
+     "class_rate": 0.65625,
+     "likelihood": 0.43554028580854576,
+     "rps": 0.18723572029587723,
+     "log_loss": 0.917691208112824
+    },
+    "Dixon-Coles": {
+     "class_rate": 0.5625,
+     "likelihood": 0.4332901697298027,
+     "rps": 0.19557358047046683,
+     "log_loss": 0.9354310290653279
+    },
+    "Elo": {
+     "class_rate": 0.546875,
+     "likelihood": 0.4037789536841759,
+     "rps": 0.21436284456476523,
+     "log_loss": 1.0138513008954553
+    }
+   },
+   "2018": {
+    "Hybrid RF": {
+     "class_rate": 0.59375,
+     "likelihood": 0.4344280685771225,
+     "rps": 0.19945669299030724,
+     "log_loss": 0.9529473617662295
+    },
+    "Dixon-Coles": {
+     "class_rate": 0.609375,
+     "likelihood": 0.4145541870907967,
+     "rps": 0.2025159491261454,
+     "log_loss": 0.9669868352535312
+    },
+    "Elo": {
+     "class_rate": 0.546875,
+     "likelihood": 0.41254101369898594,
+     "rps": 0.2072936074580833,
+     "log_loss": 0.9923875018685455
+    }
+   },
+   "2022": {
+    "Hybrid RF": {
+     "class_rate": 0.515625,
+     "likelihood": 0.39246332572457937,
+     "rps": 0.2211342233038735,
+     "log_loss": 1.0401133576590198
+    },
+    "Dixon-Coles": {
+     "class_rate": 0.4375,
+     "likelihood": 0.3934500856185162,
+     "rps": 0.23462876753522457,
+     "log_loss": 1.116411213497681
+    },
+    "Elo": {
+     "class_rate": 0.546875,
+     "likelihood": 0.4163539166672188,
+     "rps": 0.20870542508260145,
+     "log_loss": 0.9896559548997967
+    }
+   }
+  },
+  "pooled": {
+   "Hybrid RF": {
+    "class_rate": 0.5535714285714286,
+    "likelihood": 0.42397306766711473,
+    "rps": 0.19498581633041143,
+    "log_loss": 0.9631621782318216
+   },
+   "Dixon-Coles": {
+    "class_rate": 0.5446428571428571,
+    "likelihood": 0.4202683709783176,
+    "rps": 0.1942080916055934,
+    "log_loss": 0.9643106170814858
+   },
+   "Elo": {
+    "class_rate": 0.5424107142857143,
+    "likelihood": 0.41180327387429555,
+    "rps": 0.20117698619310578,
+    "log_loss": 0.9867123856888081
+   }
+  }
+ },
+ "wc2022": {
+  "eval": {
+   "Hybrid RF": {
+    "class_rate": 0.515625,
+    "likelihood": 0.39246332572457937,
+    "rps": 0.2211342233038735,
+    "log_loss": 1.04011335765902
+   },
+   "Dixon-Coles": {
+    "class_rate": 0.4375,
+    "likelihood": 0.3934500856185162,
+    "rps": 0.23462876753522457,
+    "log_loss": 1.116411213497681
+   },
+   "Elo": {
+    "class_rate": 0.546875,
+    "likelihood": 0.4163539166672188,
+    "rps": 0.20870542508260145,
+    "log_loss": 0.9896559548997967
+   },
+   "Market": {
+    "class_rate": 0.53125,
+    "likelihood": 0.4301125612058006,
+    "rps": 0.2077826935206177,
+    "log_loss": 1.0013380055598926
+   }
+  },
+  "importance": {
+   "t_attack": 0.1493,
+   "o_defense": 0.1222,
+   "o_attack": 0.1133,
+   "t_defense": 0.0771,
+   "o_rank_pos": 0.0753,
+   "o_gdp_pc": 0.0657,
+   "t_rank_pos": 0.0616,
+   "o_rank_points": 0.0592,
+   "o_pop": 0.0578,
+   "t_gdp_pc": 0.0545
+  },
+  "bootstrap": {
+   "Hybrid RF - Dixon-Coles": {
+    "mean_diff": -0.07629785583866106,
+    "ci_low": -0.17444167571790845,
+    "ci_high": 0.006008865057441761,
+    "n": 64
+   },
+   "Hybrid RF - Market": {
+    "mean_diff": 0.03877535209912749,
+    "ci_low": -0.046311554675894546,
+    "ci_high": 0.12045422971346235,
+    "n": 64
+   },
+   "Dixon-Coles - Market": {
+    "mean_diff": 0.11507320793778854,
+    "ci_low": -0.007189274787009306,
+    "ci_high": 0.24602026807582078,
+    "n": 64
+   }
+  },
+  "sim": {
+   "Dixon-Coles": {
+    "Brazil": {
+     "champion": 0.41775,
+     "final": 0.51135,
+     "semifinal": 0.7077
+    },
+    "Argentina": {
+     "champion": 0.24355,
+     "final": 0.34285,
+     "semifinal": 0.62405
+    },
+    "Uruguay": {
+     "champion": 0.07945,
+     "final": 0.2077,
+     "semifinal": 0.33825
+    },
+    "Portugal": {
+     "champion": 0.03665,
+     "final": 0.1064,
+     "semifinal": 0.20245
+    },
+    "Ecuador": {
+     "champion": 0.0272,
+     "final": 0.07755,
+     "semifinal": 0.1972
+    },
+    "United States": {
+     "champion": 0.0255,
+     "final": 0.07925,
+     "semifinal": 0.18125
+    },
+    "Spain": {
+     "champion": 0.02215,
+     "final": 0.0642,
+     "semifinal": 0.14075
+    },
+    "Canada": {
+     "champion": 0.0192,
+     "final": 0.06745,
+     "semifinal": 0.14145
+    },
+    "Mexico": {
+     "champion": 0.01785,
+     "final": 0.07465,
+     "semifinal": 0.1789
+    },
+    "England": {
+     "champion": 0.0145,
+     "final": 0.0507,
+     "semifinal": 0.13095
+    },
+    "Japan": {
+     "champion": 0.0126,
+     "final": 0.04415,
+     "semifinal": 0.0991
+    },
+    "Netherlands": {
+     "champion": 0.01155,
+     "final": 0.0458,
+     "semifinal": 0.137
+    }
+   },
+   "Hybrid RF": {
+    "France": {
+     "champion": 0.10305,
+     "final": 0.17525,
+     "semifinal": 0.29915
+    },
+    "Netherlands": {
+     "champion": 0.09995,
+     "final": 0.17275,
+     "semifinal": 0.29555
+    },
+    "Belgium": {
+     "champion": 0.08225,
+     "final": 0.14205,
+     "semifinal": 0.24745
+    },
+    "Germany": {
+     "champion": 0.06875,
+     "final": 0.12255,
+     "semifinal": 0.2155
+    },
+    "Spain": {
+     "champion": 0.0604,
+     "final": 0.1134,
+     "semifinal": 0.2089
+    },
+    "Uruguay": {
+     "champion": 0.05995,
+     "final": 0.12205,
+     "semifinal": 0.23765
+    },
+    "United States": {
+     "champion": 0.05945,
+     "final": 0.1127,
+     "semifinal": 0.20715
+    },
+    "England": {
+     "champion": 0.0584,
+     "final": 0.1104,
+     "semifinal": 0.20685
+    },
+    "Argentina": {
+     "champion": 0.0583,
+     "final": 0.11795,
+     "semifinal": 0.23315
+    },
+    "Brazil": {
+     "champion": 0.05655,
+     "final": 0.1155,
+     "semifinal": 0.2324
+    },
+    "Portugal": {
+     "champion": 0.05515,
+     "final": 0.1173,
+     "semifinal": 0.2341
+    },
+    "Canada": {
+     "champion": 0.0447,
+     "final": 0.0928,
+     "semifinal": 0.1787
+    }
+   },
+   "finals_dc": {
+    "Brazil v Uruguay": 0.0915,
+    "Argentina v Uruguay": 0.05455,
+    "Argentina v Brazil": 0.04945,
+    "Brazil v Portugal": 0.0417,
+    "Brazil v Mexico": 0.0335
+   },
+   "finals_rf": {
+    "France v Netherlands": 0.0193,
+    "Belgium v Netherlands": 0.01385,
+    "Portugal v Uruguay": 0.01345,
+    "Brazil v France": 0.0131,
+    "Belgium v France": 0.01245
+   }
+  },
+  "actual": {
+   "champion": "Argentina",
+   "runner_up": "France",
+   "note": "final drawn 3-3 after ET, Argentina won on penalties"
+  }
+ },
+ "wc2026": {
+  "eval": {
+   "Hybrid RF": {
+    "class_rate": 0.65625,
+    "likelihood": 0.46827253146138975,
+    "rps": 0.15699169381055444,
+    "log_loss": 0.8559151238814305
+   },
+   "Dixon-Coles": {
+    "class_rate": 0.6666666666666666,
+    "likelihood": 0.4877106547788908,
+    "rps": 0.14656682912198862,
+    "log_loss": 0.8151531022763491
+   },
+   "Elo": {
+    "class_rate": 0.6354166666666666,
+    "likelihood": 0.4628612434669555,
+    "rps": 0.16833462508739583,
+    "log_loss": 0.9394618067993495
+   },
+   "Market": {
+    "class_rate": 0.6979166666666666,
+    "likelihood": 0.5168142142912723,
+    "rps": 0.1404561841321583,
+    "log_loss": 0.7906245906390205
+   }
+  },
+  "n_matches": 96,
+  "importance": {
+   "t_attack": 0.1404,
+   "o_defense": 0.1183,
+   "o_attack": 0.1149,
+   "o_rank_pos": 0.0811,
+   "t_defense": 0.0722,
+   "t_rank_pos": 0.0686,
+   "o_gdp_pc": 0.0639,
+   "o_pop": 0.0593,
+   "t_pop": 0.0587,
+   "o_rank_points": 0.0554
+  },
+  "bootstrap": {
+   "Hybrid RF - Dixon-Coles": {
+    "mean_diff": 0.040762021605081064,
+    "ci_low": -0.0007996126121611354,
+    "ci_high": 0.08077577897282763,
+    "n": 96
+   },
+   "Hybrid RF - Market": {
+    "mean_diff": 0.0652905332424102,
+    "ci_low": 0.014634288362088457,
+    "ci_high": 0.114282552430435,
+    "n": 96
+   },
+   "Dixon-Coles - Market": {
+    "mean_diff": 0.02452851163732914,
+    "ci_low": -0.023937724892411815,
+    "ci_high": 0.07287624415498196,
+    "n": 96
+   }
+  },
+  "sim": {
+   "Dixon-Coles": {
+    "Argentina": {
+     "champion": 0.1614,
+     "final": 0.23985,
+     "semifinal": 0.35395
+    },
+    "Spain": {
+     "champion": 0.122,
+     "final": 0.20345,
+     "semifinal": 0.302
+    },
+    "England": {
+     "champion": 0.07985,
+     "final": 0.14365,
+     "semifinal": 0.25605
+    },
+    "Portugal": {
+     "champion": 0.06115,
+     "final": 0.11855,
+     "semifinal": 0.2109
+    },
+    "France": {
+     "champion": 0.06085,
+     "final": 0.1175,
+     "semifinal": 0.2263
+    },
+    "Brazil": {
+     "champion": 0.05895,
+     "final": 0.1136,
+     "semifinal": 0.21715
+    },
+    "Germany": {
+     "champion": 0.04675,
+     "final": 0.09645,
+     "semifinal": 0.2007
+    },
+    "Morocco": {
+     "champion": 0.04215,
+     "final": 0.084,
+     "semifinal": 0.1694
+    },
+    "Colombia": {
+     "champion": 0.0395,
+     "final": 0.0838,
+     "semifinal": 0.1584
+    },
+    "Netherlands": {
+     "champion": 0.03925,
+     "final": 0.081,
+     "semifinal": 0.1657
+    },
+    "Belgium": {
+     "champion": 0.0377,
+     "final": 0.08355,
+     "semifinal": 0.1635
+    },
+    "Japan": {
+     "champion": 0.02935,
+     "final": 0.06135,
+     "semifinal": 0.1286
+    }
+   },
+   "Hybrid RF": {
+    "France": {
+     "champion": 0.11495,
+     "final": 0.18665,
+     "semifinal": 0.2964
+    },
+    "England": {
+     "champion": 0.1001,
+     "final": 0.17025,
+     "semifinal": 0.2781
+    },
+    "Germany": {
+     "champion": 0.0806,
+     "final": 0.1404,
+     "semifinal": 0.2413
+    },
+    "Spain": {
+     "champion": 0.0777,
+     "final": 0.13105,
+     "semifinal": 0.2277
+    },
+    "Portugal": {
+     "champion": 0.07465,
+     "final": 0.13215,
+     "semifinal": 0.23115
+    },
+    "Netherlands": {
+     "champion": 0.07115,
+     "final": 0.127,
+     "semifinal": 0.2176
+    },
+    "Belgium": {
+     "champion": 0.06485,
+     "final": 0.11695,
+     "semifinal": 0.21755
+    },
+    "Brazil": {
+     "champion": 0.04725,
+     "final": 0.0949,
+     "semifinal": 0.17695
+    },
+    "Argentina": {
+     "champion": 0.0416,
+     "final": 0.087,
+     "semifinal": 0.17015
+    },
+    "Colombia": {
+     "champion": 0.04005,
+     "final": 0.08645,
+     "semifinal": 0.1732
+    },
+    "Croatia": {
+     "champion": 0.03375,
+     "final": 0.07475,
+     "semifinal": 0.1543
+    },
+    "Morocco": {
+     "champion": 0.0292,
+     "final": 0.0649,
+     "semifinal": 0.13435
+    }
+   },
+   "finals_dc": {
+    "Argentina v Spain": 0.0362,
+    "England v Spain": 0.0204,
+    "Argentina v France": 0.0176,
+    "Portugal v Spain": 0.0145,
+    "Argentina v Belgium": 0.0141
+   },
+   "finals_rf": {
+    "England v France": 0.01955,
+    "France v Portugal": 0.015,
+    "England v Germany": 0.01425,
+    "France v Germany": 0.01365,
+    "England v Spain": 0.01215
+   }
+  },
+  "conditional_qf": {
+   "Hybrid RF": {
+    "France": 0.22,
+    "England": 0.204,
+    "Spain": 0.1452,
+    "Belgium": 0.1289,
+    "Argentina": 0.0978,
+    "Switzerland": 0.0847,
+    "Norway": 0.0633,
+    "Morocco": 0.0561
+   },
+   "Dixon-Coles": {
+    "Argentina": 0.2754,
+    "Spain": 0.2068,
+    "England": 0.1431,
+    "France": 0.1137,
+    "Morocco": 0.0878,
+    "Belgium": 0.0629,
+    "Norway": 0.0628,
+    "Switzerland": 0.0475
+   },
+   "Elo": {
+    "Argentina": 0.2934,
+    "Spain": 0.2173,
+    "France": 0.1575,
+    "England": 0.1285,
+    "Belgium": 0.0669,
+    "Morocco": 0.0628,
+    "Switzerland": 0.0424,
+    "Norway": 0.0312
+   },
+   "Market (outrights)": {
+    "France": 0.3234,
+    "Spain": 0.1982,
+    "Argentina": 0.1863,
+    "England": 0.1552,
+    "Norway": 0.0548,
+    "Belgium": 0.0274,
+    "Switzerland": 0.0274,
+    "Morocco": 0.0274
+   }
+  },
+  "qf_bracket": [
+   "France v Morocco",
+   "Spain v Belgium",
+   "Norway v England",
+   "Argentina v Switzerland"
+  ]
+ }
+}

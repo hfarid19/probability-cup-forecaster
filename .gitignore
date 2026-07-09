@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+certs/
+*.db
+*.parquet
+data/raw/
+.pytest_cache/
+.ruff_cache/
+*.log
