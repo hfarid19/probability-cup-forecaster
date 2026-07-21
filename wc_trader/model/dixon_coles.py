@@ -6,7 +6,7 @@ Each team has an ATTACK and DEFENSE strength; home goals ~ Poisson(λ), away ~ P
     μ = exp(attack_away - defense_home)
 
 with the Dixon-Coles low-score correlation correction τ(x, y; λ, μ, ρ) that fixes the
-0-0/1-1/1-0/0-1 probabilities Poisson alone gets wrong (the soccer draw structure).
+0-0/1-1/1-0/0-1 probabilities Poisson alone gets wrong (the football draw structure).
 Strengths are fit by weighted maximum likelihood (recent matches weighted more via a
 half-life), then a Poisson score grid is summed into HOME/DRAW/AWAY probabilities.
 """
