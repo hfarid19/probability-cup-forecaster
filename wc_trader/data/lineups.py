@@ -4,8 +4,8 @@ For every played match in a cached FIFA calendar, fetch the live-match document 
 keep, per team: the match squad with starter flags (Status == 1) and positions, plus
 goal events with scorer and assist ids. Cached to data/raw/lineups_<year>.json.
 
-This is the raw material for the lineup-strength and player-form adjustments
-(wc_trader/model/lineup_adjust.py): who actually played, and who is producing.
+This is the raw material for the Probability Cup base rates (probability_cup/base_rates.py):
+who actually played, and who is producing.
 """
 from __future__ import annotations
 
