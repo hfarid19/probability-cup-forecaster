@@ -23,13 +23,35 @@ STARTER_STATUS = 1
 
 
 def _get(url: str) -> dict:
+    """
+    Fetch and decode one JSON document from the FIFA API.
+
+    Sends a browser User-Agent because the API rejects the default urllib agent.
+
+    Args:
+        url: Fully formed API URL to request.
+
+    Returns:
+        dict: The decoded JSON response.
+    """
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=45) as resp:
         return json.load(resp)
 
 
 def _side(team: dict | None) -> dict | None:
-    """Extract one team's lineup + goals from a live-match team blob (pure-ish)."""
+    """
+    Extract one team's lineup and goal events from a live-match team blob.
+
+    Returns None when the blob is missing or has no team name (an unplayed side). Each
+    player carries a starter flag (Status == STARTER_STATUS) and a position.
+
+    Args:
+        team: A HomeTeam/AwayTeam sub-document from the live-match API, or None.
+
+    Returns:
+        dict | None: {'team', 'players', 'goals'} for the side, or None if absent.
+    """
     if not team or not team.get("TeamName"):
         return None
     players = []
@@ -48,7 +70,22 @@ def _side(team: dict | None) -> dict | None:
 
 
 def fetch_lineups(year: int, *, delay_s: float = 0.25, force: bool = False) -> Path:
-    """Fetch + cache lineups for all played matches of one tournament."""
+    """
+    Fetch and cache lineups and goal events for all played matches of a tournament.
+
+    Reads the cached FIFA calendar, requests the live-match document for each played
+    match, and writes the combined records to data/raw/lineups_<year>.json. Skips
+    unplayed placeholders and matches whose fetch fails. Reads the cache when present
+    unless force is set.
+
+    Args:
+        year: Tournament year (2018, 2022, or 2026).
+        delay_s: Seconds to sleep between match requests (politeness throttle).
+        force: Re-fetch even if the cache already exists.
+
+    Returns:
+        Path: The local path to the (now present) lineups JSON.
+    """
     out = Path(OUT_PATH.format(year=year))
     if out.exists() and not force:
         return out
@@ -58,12 +95,12 @@ def fetch_lineups(year: int, *, delay_s: float = 0.25, force: bool = False) -> P
         if not ((m.get("Home") or {}).get("TeamName")):    # unplayed placeholder
             continue
         try:
-            d = _get(LIVE_URL.format(comp=m["IdCompetition"], season=m["IdSeason"],
-                                     stage=m["IdStage"], match=m["IdMatch"]))
+            doc = _get(LIVE_URL.format(comp=m["IdCompetition"], season=m["IdSeason"],
+                                       stage=m["IdStage"], match=m["IdMatch"]))
         except Exception as e:
             print(f"  warn: match {m.get('MatchNumber')} fetch failed: {e}")
             continue
-        home, away = _side(d.get("HomeTeam")), _side(d.get("AwayTeam"))
+        home, away = _side(doc.get("HomeTeam")), _side(doc.get("AwayTeam"))
         if home and away:
             records.append({"match_number": m.get("MatchNumber"),
                             "date": (m.get("Date") or "")[:10],
@@ -75,4 +112,13 @@ def fetch_lineups(year: int, *, delay_s: float = 0.25, force: bool = False) -> P
 
 
 def load_lineups(year: int) -> list[dict]:
+    """
+    Load the cached lineups and goal events for a tournament.
+
+    Args:
+        year: Tournament year (2018, 2022, or 2026).
+
+    Returns:
+        list[dict]: One record per played match (match_number, date, home, away).
+    """
     return json.loads(Path(OUT_PATH.format(year=year)).read_text())

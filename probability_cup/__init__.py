@@ -3,7 +3,7 @@ Probability Cup (2026 World Cup knockout rounds).
 
 The Cup posed binary questions per match ("Will the match have <=2 goals?",
 "Will Messi score?", ...) scored by Brier loss *relative to the crowd average*.
-Being right isn't enough — you score by being better calibrated than the field,
+Being right isn't enough; you score by being better calibrated than the field,
 which rewards fading the crowd's systematic biases (over-goals, over-cards,
 star-scorer hype) rather than chasing them.
 

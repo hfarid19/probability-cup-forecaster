@@ -22,7 +22,22 @@ from .base import Model
 
 
 def _tau(hg, ag, lam, mu, rho):
-    """Dixon-Coles low-score correction (vectorized over arrays)."""
+    """Compute the Dixon-Coles low-score correction factor for each match.
+
+    Independent Poissons misprice the four low-score results (0-0, 0-1, 1-0,
+    1-1); this returns the multiplicative correction that rescales those cells
+    and leaves every other scoreline at 1.0. Vectorized over arrays.
+
+    Args:
+        hg: Array of home goals per match.
+        ag: Array of away goals per match.
+        lam: Array of home scoring rates (lambda) per match.
+        mu: Array of away scoring rates (mu) per match.
+        rho: Scalar low-score correlation parameter.
+
+    Returns:
+        np.ndarray: Correction factor per match, 1.0 outside the four low-score cells.
+    """
     t = np.ones_like(lam, dtype=float)
     m00 = (hg == 0) & (ag == 0)
     m01 = (hg == 0) & (ag == 1)
@@ -36,7 +51,19 @@ def _tau(hg, ag, lam, mu, rho):
 
 
 class DixonColesModel(Model):
+    """Dixon-Coles Poisson goals model fit by time-weighted maximum likelihood.
+
+    Learns per-team attack and defense strengths plus a home-advantage term and
+    the low-score correlation rho. Predictions build a Poisson score grid, apply
+    the low-score correction, and sum it into HOME/DRAW/AWAY probabilities.
+    """
+
     def __init__(self, max_goals: int = 10):
+        """Initialize an unfitted model.
+
+        Args:
+            max_goals: Highest goal count per team included in the score grid.
+        """
         self.attack: dict[str, float] = {}
         self.defense: dict[str, float] = {}
         self.home_adv: float = 0.0
@@ -46,6 +73,23 @@ class DixonColesModel(Model):
 
     def fit(self, df: pd.DataFrame, *, half_life_days: float | None = 540.0,
             ridge: float = 0.01, min_matches: int = 5) -> "DixonColesModel":
+        """Estimate team strengths, home advantage, and rho by weighted MLE.
+
+        Filters to teams with enough matches, weights each match by recency, then
+        minimizes the ridge-penalized negative log-likelihood of the Dixon-Coles
+        model. Results are stored on the instance.
+
+        Args:
+            df: Match table with home_team, away_team, home_score, away_score,
+                neutral, and date columns.
+            half_life_days: Recency half-life in days for match weights; None weights
+                all matches equally.
+            ridge: L2 penalty on attack and defense parameters for stability.
+            min_matches: Minimum appearances for a team to be estimated.
+
+        Returns:
+            DixonColesModel: This instance, now fitted (for chaining).
+        """
         # Keep teams with enough games for a stable estimate.
         counts = pd.concat([df["home_team"], df["away_team"]]).value_counts()
         teams = sorted(counts[counts >= min_matches].index)
@@ -65,8 +109,6 @@ class DixonColesModel(Model):
         else:
             w = np.ones(len(d))
 
-        gammaln_const = 0.0  # constant in params; omit from objective
-
         def neg_ll(params):
             atk = params[:n]
             dfn = params[n:2 * n]
@@ -77,7 +119,7 @@ class DixonColesModel(Model):
             lp_home = hg * np.log(lam) - lam
             lp_away = ag * np.log(mu) - mu
             ll = w * (lp_home + lp_away + np.log(tau))
-            return -ll.sum() + ridge * (atk @ atk + dfn @ dfn) + gammaln_const
+            return -ll.sum() + ridge * (atk @ atk + dfn @ dfn)
 
         x0 = np.concatenate([np.zeros(n), np.zeros(n), [0.25], [-0.05]])
         bounds = [(-3, 3)] * (2 * n) + [(-1, 1), (-0.2, 0.2)]
@@ -93,7 +135,21 @@ class DixonColesModel(Model):
         return self
 
     def score_grid(self, home: str, away: str, neutral: bool = False) -> np.ndarray:
-        """Joint P(home goals = x, away goals = y) with the DC low-score correction."""
+        """Build the joint scoreline probability grid for a match.
+
+        Entry ``grid[x, y]`` is P(home scores x, away scores y) from independent
+        Poissons with the Dixon-Coles low-score correction applied and the whole
+        grid renormalized to sum to 1. Unknown teams fall back to league-average
+        strength.
+
+        Args:
+            home: Home team name.
+            away: Away team name.
+            neutral: If True, no home advantage is applied.
+
+        Returns:
+            np.ndarray: A (max_goals+1, max_goals+1) grid of scoreline probabilities.
+        """
         # Unknown teams fall back to league-average strength (0).
         ah, dh = self.attack.get(home, 0.0), self.defense.get(home, 0.0)
         aa, da = self.attack.get(away, 0.0), self.defense.get(away, 0.0)
@@ -116,6 +172,19 @@ class DixonColesModel(Model):
         return grid / grid.sum()
 
     def match_probabilities(self, home: str, away: str, neutral: bool = False) -> dict[Outcome, float]:
+        """Predict HOME/DRAW/AWAY probabilities by summing the score grid.
+
+        Sums the lower triangle (home wins), diagonal (draw), and upper triangle
+        (away wins) of :meth:`score_grid`.
+
+        Args:
+            home: Home team name.
+            away: Away team name.
+            neutral: If True, no home advantage is applied.
+
+        Returns:
+            dict[Outcome, float]: Probabilities keyed by HOME/DRAW/AWAY summing to ~1.0.
+        """
         grid = self.score_grid(home, away, neutral)
         return {
             Outcome.HOME: float(np.tril(grid, -1).sum()),   # x > y

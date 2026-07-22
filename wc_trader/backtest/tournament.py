@@ -7,7 +7,7 @@ estimate each team's probability of winning the title / reaching each stage.
 
 The template is parsed from the cached FIFA calendar JSON (data/raw/fifa_calendar_<year>.json),
 so both the 2022 (32-team) and 2026 (48-team, third-place slots like '3ABCDF') formats work
-without hand-coded brackets. Third-place slot assignment — FIFA's combination table — is
+without hand-coded brackets. Third-place slot assignment (FIFA's combination table) is
 solved per-simulation by backtracking over the slots' allowed-group sets.
 
 Knockout draws after 90' advance by coin flip (extra time + penalties approximation).
@@ -30,6 +30,13 @@ ScoreSampler = Callable[[str, str, np.random.RandomState], tuple[int, int]]
 
 @dataclass
 class KOMatch:
+    """A single knockout fixture from the calendar template.
+
+    Args:
+        number: The FIFA match number (knockout matches are ordered by it).
+        ref_a: Placeholder for one side, e.g. '1A', '2B', '3ABCDF', 'W97', 'RU101'.
+        ref_b: Placeholder for the other side, in the same notation.
+    """
     number: int
     ref_a: str   # '1A' | '2B' | '3ABCDF' | 'W97' | 'RU101'
     ref_b: str
@@ -37,6 +44,14 @@ class KOMatch:
 
 @dataclass
 class TournamentSpec:
+    """Parsed tournament template: groups, group fixtures, and knockout bracket.
+
+    Args:
+        groups: Group letter to its list of team names, e.g. 'A' -> 4 teams.
+        fixtures: Group-stage matches as (group, home, away) tuples.
+        ko: Knockout fixtures sorted by match number.
+        final_number: Match number of the final.
+    """
     groups: dict[str, list[str]]                 # 'A' -> 4 team names
     fixtures: list[tuple[str, str, str]]         # (group, home, away)
     ko: list[KOMatch]                            # sorted by match number
@@ -44,10 +59,23 @@ class TournamentSpec:
 
     @property
     def teams(self) -> list[str]:
+        """Return every team in the tournament, sorted by name.
+
+        Returns:
+            list[str]: All team names across all groups, sorted.
+        """
         return sorted(t for g in self.groups.values() for t in g)
 
 
 def _team_name(side: dict | None) -> str | None:
+    """Extract and normalize a team name from a calendar match side.
+
+    Args:
+        side: The "Home" or "Away" object from the calendar JSON, or None.
+
+    Returns:
+        str | None: The results-dataset team name, or None if the side has no team.
+    """
     if not side:
         return None
     names = side.get("TeamName") or []
@@ -56,6 +84,17 @@ def _team_name(side: dict | None) -> str | None:
 
 
 def parse_calendar(path: str | Path) -> TournamentSpec:
+    """Parse a cached FIFA calendar JSON file into a TournamentSpec.
+
+    Group matches (those carrying a group name) become fixtures and populate the
+    group rosters; the remaining matches become the knockout template.
+
+    Args:
+        path: Path to the cached FIFA calendar JSON file.
+
+    Returns:
+        TournamentSpec: The parsed groups, fixtures, and knockout bracket.
+    """
     data = json.loads(Path(path).read_text())
     groups: dict[str, list[str]] = {}
     fixtures: list[tuple[str, str, str]] = []
@@ -81,12 +120,32 @@ def parse_calendar(path: str | Path) -> TournamentSpec:
 
 
 def _standings(order_key: dict[str, tuple]) -> list[str]:
+    """Rank teams from best to worst by a comparable sort key.
+
+    Args:
+        order_key: Team name to its ranking tuple (higher sorts higher), e.g.
+            (points, goal difference, goals for, tie-break random).
+
+    Returns:
+        list[str]: Team names ordered best to worst.
+    """
     return sorted(order_key, key=lambda t: order_key[t], reverse=True)
 
 
 def _assign_thirds(slots: list[tuple[int, str]], qualified: dict[str, str]) -> dict[int, str]:
-    """Match third-place slots (match_number, allowed-groups string like '3ABCDF') to the
-    qualifying groups by backtracking. Returns {match_number: team}."""
+    """Assign qualifying third-placed teams to their knockout slots by backtracking.
+
+    Each slot allows a fixed set of groups (encoded in its reference string, e.g.
+    '3ABCDF'). Slots are filled most-constrained-first; if no consistent assignment
+    exists (which should not happen with FIFA's table), a greedy fallback is used.
+
+    Args:
+        slots: (match_number, allowed-groups string) for each third-place slot.
+        qualified: Group letter to the third-placed team that qualified from it.
+
+    Returns:
+        dict[int, str]: Match number to the team assigned to that slot.
+    """
     slot_opts = []
     for num, ref in slots:
         allowed = [g for g in ref[1:] if g in qualified]
@@ -96,6 +155,15 @@ def _assign_thirds(slots: list[tuple[int, str]], qualified: dict[str, str]) -> d
     assignment: dict[int, str] = {}
 
     def bt(i: int, used: frozenset) -> bool:
+        """Recursively try to fill slot i onwards; return True on success.
+
+        Args:
+            i: Index of the slot to fill next.
+            used: Group letters already consumed by earlier slots.
+
+        Returns:
+            bool: True if a consistent assignment for slots i.. exists.
+        """
         if i == len(slot_opts):
             return True
         num, allowed = slot_opts[i]
@@ -121,6 +189,21 @@ def _assign_thirds(slots: list[tuple[int, str]], qualified: dict[str, str]) -> d
 
 def simulate_once(spec: TournamentSpec, sampler: ScoreSampler,
                   rng: np.random.RandomState) -> dict:
+    """Play out one full tournament and report who reached the late stages.
+
+    Simulates every group fixture, ranks the groups (points, then goal difference,
+    then goals for, with a random final tie-break), assigns any best-third slots,
+    then resolves the knockout bracket. Knockout draws after 90 minutes are decided
+    by a coin flip (extra time plus penalties approximation).
+
+    Args:
+        spec: The parsed tournament template.
+        sampler: Callback that samples (home_goals, away_goals) for a fixture.
+        rng: Random state driving score sampling and tie-breaks.
+
+    Returns:
+        dict: {"champion": team, "finalists": (a, b), "semifinalists": (..4 teams)}.
+    """
     # --- group stage ---
     pts: dict[str, float] = {}
     gd: dict[str, int] = {}
@@ -164,6 +247,15 @@ def simulate_once(spec: TournamentSpec, sampler: ScoreSampler,
     participants: dict[int, tuple[str, str]] = {}
 
     def resolve(num: int, ref: str) -> str:
+        """Resolve a knockout placeholder reference to a concrete team name.
+
+        Args:
+            num: Match number of the fixture using this reference.
+            ref: Placeholder such as '1A', '3ABCDF', 'W97', or 'RU101'.
+
+        Returns:
+            str: The team currently filling that placeholder.
+        """
         if re.fullmatch(r"[12][A-L]", ref):
             return pos[ref]
         if re.fullmatch(r"3[A-L]{2,}", ref):
@@ -186,9 +278,8 @@ def simulate_once(spec: TournamentSpec, sampler: ScoreSampler,
         participants[k.number] = (a, b)
 
     final = spec.final_number
-    sf_nums = [int(r[1:]) for r in
-               (next(k for k in spec.ko if k.number == final).ref_a,
-                next(k for k in spec.ko if k.number == final).ref_b)]
+    final_match = next(k for k in spec.ko if k.number == final)
+    sf_nums = [int(r[1:]) for r in (final_match.ref_a, final_match.ref_b)]
     return {
         "champion": winners[final],
         "finalists": participants[final],
@@ -198,8 +289,22 @@ def simulate_once(spec: TournamentSpec, sampler: ScoreSampler,
 
 def simulate(spec: TournamentSpec, sampler: ScoreSampler, n_sims: int = 20000,
              seed: int = 42) -> tuple[dict[str, dict[str, float]], dict[tuple, float]]:
-    """Returns ({team: {champion, final, semifinal}} probabilities,
-                {(finalistA, finalistB): probability} for the most likely finals)."""
+    """Estimate stage-reaching probabilities by Monte-Carlo over many tournaments.
+
+    Runs simulate_once n_sims times and turns the counts into probabilities.
+
+    Args:
+        spec: The parsed tournament template.
+        sampler: Callback that samples (home_goals, away_goals) for a fixture.
+        n_sims: Number of tournament simulations to run.
+        seed: Seed for the simulation RNG.
+
+    Returns:
+        tuple: A pair of dicts. The first maps each team to its
+            {champion, final, semifinal} probabilities. The second maps each
+            finalist pair (finalistA, finalistB) to its probability, ordered from
+            most to least likely.
+    """
     rng = np.random.RandomState(seed)
     counts = {t: {"champion": 0, "final": 0, "semifinal": 0} for t in spec.teams}
     final_pairs: dict[tuple, int] = {}
@@ -219,10 +324,31 @@ def simulate(spec: TournamentSpec, sampler: ScoreSampler, n_sims: int = 20000,
 # ---- samplers ----
 
 def dc_sampler(dc, cache: dict | None = None) -> ScoreSampler:
-    """Sample scores from the Dixon-Coles corrected joint grid (neutral venue)."""
+    """Build a score sampler backed by the Dixon-Coles joint score grid.
+
+    Scores are drawn from the corrected joint distribution at a neutral venue. Each
+    matchup's grid is computed once and cached so repeated simulations are cheap.
+
+    Args:
+        dc: A fitted Dixon-Coles model exposing score_grid(home, away, neutral).
+        cache: Optional dict reused as the (home, away) -> grid cache.
+
+    Returns:
+        ScoreSampler: A callable that samples (home_goals, away_goals).
+    """
     grids: dict[tuple[str, str], np.ndarray] = cache if cache is not None else {}
 
     def sample(h: str, a: str, rng: np.random.RandomState) -> tuple[int, int]:
+        """Sample one match score for home team h against away team a.
+
+        Args:
+            h: Home team name.
+            a: Away team name.
+            rng: Random state used to draw from the score grid.
+
+        Returns:
+            tuple[int, int]: Sampled (home_goals, away_goals).
+        """
         g = grids.get((h, a))
         if g is None:
             g = dc.score_grid(h, a, neutral=True)
@@ -234,9 +360,27 @@ def dc_sampler(dc, cache: dict | None = None) -> ScoreSampler:
 
 
 def rf_sampler(lambdas: dict[tuple[str, str], tuple[float, float]]) -> ScoreSampler:
-    """Sample independent Poisson scores from precomputed RF expected goals
-    {(home, away): (lambda_home, lambda_away)} — the paper's §5 procedure."""
+    """Build a score sampler that draws independent Poisson goals per team.
+
+    Uses precomputed random-forest expected goals (the paper's section 5 procedure).
+
+    Args:
+        lambdas: (home, away) to (lambda_home, lambda_away) expected-goals rates.
+
+    Returns:
+        ScoreSampler: A callable that samples (home_goals, away_goals).
+    """
     def sample(h: str, a: str, rng: np.random.RandomState) -> tuple[int, int]:
+        """Sample one match score for home team h against away team a.
+
+        Args:
+            h: Home team name.
+            a: Away team name.
+            rng: Random state used to draw the Poisson goal counts.
+
+        Returns:
+            tuple[int, int]: Sampled (home_goals, away_goals).
+        """
         lh, la = lambdas[(h, a)]
         return int(rng.poisson(lh)), int(rng.poisson(la))
 

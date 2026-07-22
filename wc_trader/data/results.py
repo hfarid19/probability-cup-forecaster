@@ -20,8 +20,23 @@ DEFAULT_PATH = Path("data/raw/results.csv")
 SOURCE_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
 
 
-def fetch_results(path: str | Path = DEFAULT_PATH, url: str = SOURCE_URL, force: bool = False) -> Path:
-    """Download the results dataset if not already present. Returns the local path."""
+def fetch_results(
+    path: str | Path = DEFAULT_PATH, url: str = SOURCE_URL, force: bool = False
+) -> Path:
+    """
+    Download the historical results dataset to a local CSV if not already present.
+
+    Hits the network only when the file is missing or force is set, so repeated calls
+    are cheap. Downloading is a one-time setup step performed before load_results.
+
+    Args:
+        path: Local path to read from, or write the downloaded CSV to.
+        url: Source URL of the martj42 results CSV.
+        force: Re-download even if the local file already exists.
+
+    Returns:
+        Path: The local path to the (now present) results CSV.
+    """
     p = Path(path)
     if p.exists() and not force:
         return p
@@ -31,7 +46,18 @@ def fetch_results(path: str | Path = DEFAULT_PATH, url: str = SOURCE_URL, force:
 
 
 def load_results(path: str | Path = DEFAULT_PATH) -> pd.DataFrame:
-    """Load + clean the results CSV into a chronologically sorted DataFrame."""
+    """
+    Load and clean the results CSV into a chronologically sorted DataFrame.
+
+    Parses dates, drops rows without a recorded score (future or abandoned fixtures),
+    coerces scores to int, and ensures a boolean `neutral` column exists.
+
+    Args:
+        path: Local path to the results CSV.
+
+    Returns:
+        pd.DataFrame: Cleaned results sorted by date with a reset index.
+    """
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"Results dataset not found at {p}. Run fetch_results() first.")

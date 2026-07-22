@@ -2,7 +2,7 @@
 
 Team names follow the martj42 results dataset conventions ("United States",
 "South Korea", "Ivory Coast", ...). Anything not mapped falls back explicitly
-("OTHER" confederation / None ISO3) and is logged by callers — fail soft, visibly.
+("OTHER" confederation / None ISO3) and is logged by callers (fail soft, visibly).
 """
 from __future__ import annotations
 
@@ -91,16 +91,56 @@ _ISO3_OVERRIDES: dict[str, str] = {
 
 
 def confederation(team: str) -> str:
+    """
+    Return the confederation for a team, or "OTHER" if unmapped.
+
+    Args:
+        team: Team name in results-dataset spelling.
+
+    Returns:
+        str: Confederation code (UEFA, CONMEBOL, CONCACAF, ...) or "OTHER".
+    """
     return CONFEDERATIONS.get(team, "OTHER")
 
 
 def iso3(team: str) -> str | None:
+    """
+    Return the ISO3 code for a team's World Bank data, or None if unmapped.
+
+    UK constituents share GBR; unmapped teams return None so callers can fail soft and
+    log the gap rather than crash.
+
+    Args:
+        team: Team name in results-dataset spelling.
+
+    Returns:
+        str | None: ISO3 country code, or None if the team is not mapped.
+    """
     return _ISO3_OVERRIDES.get(team)
 
 
 def wc_start(year: int) -> str:
+    """
+    Return the start date of a World Cup edition (its feature freeze date).
+
+    Args:
+        year: World Cup edition year (a key in WORLD_CUPS).
+
+    Returns:
+        str: The tournament start date as an ISO "YYYY-MM-DD" string.
+    """
     return WORLD_CUPS[year]["start"]
 
 
 def is_host(team: str, year: int) -> bool:
+    """
+    Return whether a team hosted the given World Cup edition.
+
+    Args:
+        team: Team name in results-dataset spelling.
+        year: World Cup edition year (a key in WORLD_CUPS).
+
+    Returns:
+        bool: True if the team is a host of that edition, else False.
+    """
     return team in WORLD_CUPS[year]["hosts"]

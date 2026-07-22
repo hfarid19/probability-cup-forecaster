@@ -24,11 +24,32 @@ ABILITY_HALF_LIFE = 540.0
 
 
 def wc_matches(df: pd.DataFrame, year: int) -> pd.DataFrame:
+    """Select the World Cup matches for one year, ordered by date.
+
+    Args:
+        df: The full results dataset.
+        year: The World Cup year to filter to.
+
+    Returns:
+        pd.DataFrame: That tournament's matches, date-sorted with a fresh index.
+    """
     m = df[(df.tournament == "FIFA World Cup") & (df.date.dt.year == year)]
     return m.sort_values("date").reset_index(drop=True)
 
 
 def fit_abilities(df: pd.DataFrame, year: int) -> DixonColesModel:
+    """Fit a Dixon-Coles ability model on matches before a tournament's start.
+
+    Enforces the freeze protocol: only matches within the ability window and
+    strictly before kickoff are used, weighted by an exponential half-life.
+
+    Args:
+        df: The full results dataset.
+        year: The World Cup year whose start date bounds the training window.
+
+    Returns:
+        DixonColesModel: The fitted ability model.
+    """
     start = pd.Timestamp(wc_start(year))
     lo = start - pd.DateOffset(years=ABILITY_WINDOW_YEARS)
     train = df[(df.date >= lo) & (df.date < start)]
@@ -36,6 +57,15 @@ def fit_abilities(df: pd.DataFrame, year: int) -> DixonColesModel:
 
 
 def frozen_elo(df: pd.DataFrame, year: int) -> EloModel:
+    """Build an Elo model updated on every match strictly before a tournament.
+
+    Args:
+        df: The full results dataset.
+        year: The World Cup year whose start date is the freeze cutoff.
+
+    Returns:
+        EloModel: The Elo model with ratings frozen at the tournament's start.
+    """
     elo = EloModel()
     freeze = pd.Timestamp(wc_start(year))
     for r in df[df.date < freeze].itertuples(index=False):
@@ -44,7 +74,18 @@ def frozen_elo(df: pd.DataFrame, year: int) -> EloModel:
 
 
 def covariate_lookups(df: pd.DataFrame, years: list[int] | None = None):
-    """(ranks, gdp, pop) lookups covering every team in the given World Cups."""
+    """Build FIFA-rank, GDP, and population lookups for the given World Cups.
+
+    Fetches the ranking and World Bank data, then restricts them to the universe of
+    teams appearing in the requested tournaments.
+
+    Args:
+        df: The full results dataset.
+        years: World Cup years to cover; defaults to all train years plus the test year.
+
+    Returns:
+        tuple: (ranks, gdp, pop) lookup objects covering every team in those years.
+    """
     years = years or (TRAIN_YEARS + [TEST_YEAR])
     fetch_fifa_rankings()
     try:
@@ -63,6 +104,24 @@ def covariate_lookups(df: pd.DataFrame, years: list[int] | None = None):
 def build_snapshots(teams: list[str], year: int, dc: DixonColesModel,
                     ranks: RankLookup, gdp: IndicatorLookup, pop: IndicatorLookup,
                     missing: dict) -> dict[str, TeamSnapshot]:
+    """Assemble the per-team feature snapshots for one tournament.
+
+    For each team, gathers ability (attack/defense), FIFA rank, GDP per capita and
+    population (frozen to the year before kickoff), host flag, and confederation.
+    Any missing covariate is recorded in the shared ``missing`` diagnostics dict.
+
+    Args:
+        teams: Team names to build snapshots for.
+        year: The World Cup year (sets the freeze dates and host flag).
+        dc: The fitted Dixon-Coles model supplying attack/defense abilities.
+        ranks: FIFA ranking lookup.
+        gdp: GDP-per-capita lookup.
+        pop: Population lookup.
+        missing: Diagnostics dict, appended to in place with any missing covariates.
+
+    Returns:
+        dict[str, TeamSnapshot]: Team name to its feature snapshot.
+    """
     start = pd.Timestamp(wc_start(year))
     rank_table = ranks.table_asof(start)
     snaps = {}
@@ -89,7 +148,23 @@ def build_snapshots(teams: list[str], year: int, dc: DixonColesModel,
 
 def build_frame(df: pd.DataFrame, year: int, ranks, gdp, pop, missing: dict,
                 dc: DixonColesModel | None = None) -> tuple[pd.DataFrame, DixonColesModel]:
-    """Two-rows-per-match training/eval frame for one tournament (+ its ability model)."""
+    """Build the two-rows-per-match training/eval frame for one tournament.
+
+    Fits (or reuses) the ability model, snapshots every team, and expands each match
+    into the two feature rows the hybrid RF model consumes.
+
+    Args:
+        df: The full results dataset.
+        year: The World Cup year to build the frame for.
+        ranks: FIFA ranking lookup.
+        gdp: GDP-per-capita lookup.
+        pop: Population lookup.
+        missing: Diagnostics dict, appended to in place with any missing covariates.
+        dc: Optional pre-fitted ability model; fitted from ``df`` if not given.
+
+    Returns:
+        tuple[pd.DataFrame, DixonColesModel]: The feature frame and the ability model.
+    """
     dc = dc or fit_abilities(df, year)
     matches = wc_matches(df, year)
     teams = sorted(set(matches.home_team) | set(matches.away_team))
@@ -102,7 +177,17 @@ def build_frame(df: pd.DataFrame, year: int, ranks, gdp, pop, missing: dict,
 
 
 def load_market_probs(path: str = "data/raw/wc2026_odds.csv") -> dict[tuple, dict]:
-    """{(home, away, date): de-vigged {HOME/DRAW/AWAY: prob}} from scraped odds, or {}."""
+    """Load scraped bookmaker odds and convert them to de-vigged probabilities.
+
+    Each row's decimal odds are inverted and renormalized to remove the bookmaker's
+    margin. Returns an empty dict if the odds file is absent.
+
+    Args:
+        path: Path to the odds CSV file.
+
+    Returns:
+        dict[tuple, dict]: (home, away, date) to {HOME/DRAW/AWAY: probability}.
+    """
     if not Path(path).exists():
         return {}
     odds = pd.read_csv(path)

@@ -1,7 +1,7 @@
 """Produce every number for PAPER.md (the Groll et al. replication paper).
 
 Sections map one-to-one to the paper:
-  §4  Leave-one-tournament-out comparison over WCs 1998–2022:
+  §4  Leave-one-tournament-out comparison over WCs 1998 to 2022:
       hybrid RF vs Dixon-Coles vs Elo on classification rate, likelihood, RPS (+ log-loss).
   §5a The 2022 World Cup: train ≤2018, evaluate all 64 matches (incl. market benchmark),
       variable importance, pre-tournament Monte-Carlo simulation (champion/final/SF probs).
@@ -49,6 +49,15 @@ QF_PAIRS_2026 = [("France", "Morocco"), ("Spain", "Belgium"),
 
 
 def metric_block(probs: list[dict], outcomes: list[str]) -> dict:
+    """Compute the paper's headline scoring metrics for one set of forecasts.
+
+    Args:
+        probs: Per-match forecasts, each a dict over the outcome classes.
+        outcomes: Realized outcome class for each match.
+
+    Returns:
+        dict: {"class_rate", "likelihood", "rps", "log_loss"} for the forecasts.
+    """
     return {
         "class_rate": accuracy(probs, outcomes),
         "likelihood": avg_likelihood(probs, outcomes),
@@ -58,7 +67,23 @@ def metric_block(probs: list[dict], outcomes: list[str]) -> dict:
 
 
 def eval_tournament(df, year, frame, dc, elo, rf, market: dict | None) -> dict:
-    """Per-match probs for RF/DC/Elo (+ market if odds available) on one tournament."""
+    """Produce per-match forecasts for every model on one tournament.
+
+    Scores each match with the hybrid RF, Dixon-Coles, and Elo models, and includes
+    the market forecasts too when de-vigged odds are available for every match.
+
+    Args:
+        df: The full results dataset.
+        year: The World Cup year to evaluate.
+        frame: The two-rows-per-match feature frame for the tournament.
+        dc: The fitted Dixon-Coles model.
+        elo: The frozen Elo model.
+        rf: The fitted hybrid RF model.
+        market: De-vigged market probabilities, or None to skip the market model.
+
+    Returns:
+        dict: {"probs": {model: [per-match forecast dicts]}, "outcomes": [classes]}.
+    """
     matches = wc_matches(df, year)
     probs = {"Hybrid RF": [], "Dixon-Coles": [], "Elo": []}
     mkt: list[dict] = []
@@ -81,18 +106,59 @@ def eval_tournament(df, year, frame, dc, elo, rf, market: dict | None) -> dict:
 
 
 def sim_tables(spec, dc, rf, snaps, n_sims: int) -> dict:
+    """Run the Monte-Carlo simulator with both samplers and summarize the results.
+
+    Simulates the tournament under the Dixon-Coles and hybrid RF score samplers, then
+    keeps the top champions and most likely finals for each.
+
+    Args:
+        spec: The parsed tournament template.
+        dc: The fitted Dixon-Coles model (Dixon-Coles sampler).
+        rf: The fitted hybrid RF model (RF sampler).
+        snaps: Per-team feature snapshots feeding the RF expected-goals table.
+        n_sims: Number of tournament simulations per sampler.
+
+    Returns:
+        dict: Top champion tables and top finals pairings for both models.
+    """
     dc_res, dc_finals = simulate(spec, dc_sampler(dc), n_sims=n_sims, seed=42)
     rf_res, rf_finals = simulate(spec, rf_sampler(rf_lambda_table(rf, snaps)),
                                  n_sims=n_sims, seed=42)
     def top(res, k=12):
+        """Keep the k teams with the highest champion probability.
+
+        Args:
+            res: Team to its stage-probability dict.
+            k: Number of teams to keep.
+
+        Returns:
+            dict: The k highest-champion-probability teams and their probabilities.
+        """
         return {t: r for t, r in sorted(res.items(), key=lambda x: -x[1]["champion"])[:k]}
     def toppairs(fp, k=5):
+        """Format the k most likely finals pairings as "A v B" keys.
+
+        Args:
+            fp: Finalist pair tuple to its probability, most likely first.
+            k: Number of pairings to keep.
+
+        Returns:
+            dict: "teamA v teamB" to probability for the top k pairings.
+        """
         return {" v ".join(p): v for p, v in list(fp.items())[:k]}
     return {"Dixon-Coles": top(dc_res), "Hybrid RF": top(rf_res),
             "finals_dc": toppairs(dc_finals), "finals_rf": toppairs(rf_finals)}
 
 
 def main() -> None:
+    """Run the full replication analysis and write paper/results.json.
+
+    Loads the results data and frozen covariates, builds per-tournament frames, then
+    produces every number for the paper: the leave-one-tournament-out comparison
+    (section 4), the 2022 experiment (section 5a), and the 2026 experiment through
+    the Round of 16 (section 5b). Command-line flags control the simulation count and
+    whether to refresh the results dataset.
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("--sims", type=int, default=20000)
     ap.add_argument("--no-refresh", action="store_true")
@@ -180,12 +246,38 @@ def main() -> None:
     elo26 = frozen_elo(df, 2026)
 
     def beat(model_probs):
+        """Wrap a match-probability function into a knockout p_beat callback.
+
+        Args:
+            model_probs: Callable returning outcome probabilities for (a, b).
+
+        Returns:
+            Callable[[str, str], float]: p_beat(a, b), the probability a advances.
+        """
         def p_beat(a, b):
+            """Return the probability team a eliminates team b in a knockout tie.
+
+            Args:
+                a: One team.
+                b: The other team.
+
+            Returns:
+                float: Probability a advances past the tie.
+            """
             p = model_probs(a, b)
             return advance_prob_from_3way(p[Outcome.HOME], p[Outcome.DRAW])
         return p_beat
 
     def rf_pb(a, b):
+        """Compute the hybrid RF outcome probabilities for a neutral-venue tie.
+
+        Args:
+            a: Home-listed team.
+            b: Away-listed team.
+
+        Returns:
+            dict: Outcome probabilities keyed by Outcome for a vs b.
+        """
         return rf26.match_probabilities_from_rows(
             pd.DataFrame(match_rows("qf", a, b, None, None, snaps26)))
 

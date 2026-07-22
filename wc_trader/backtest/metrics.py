@@ -13,6 +13,15 @@ CLASSES = ("HOME", "DRAW", "AWAY")
 
 
 def match_outcome(home_score: int, away_score: int) -> str:
+    """Classify a match result as HOME, DRAW, or AWAY from the final score.
+
+    Args:
+        home_score: Goals scored by the home team.
+        away_score: Goals scored by the away team.
+
+    Returns:
+        str: "HOME", "AWAY", or "DRAW".
+    """
     if home_score > away_score:
         return "HOME"
     if home_score < away_score:
@@ -21,36 +30,83 @@ def match_outcome(home_score: int, away_score: int) -> str:
 
 
 def log_loss(probs: list[dict], outcomes: list[str]) -> float:
-    """Mean negative log-likelihood of the realized outcomes. Lower is better."""
+    """Compute the mean negative log-likelihood of the realized outcomes.
+
+    Lower is better. Predicted probabilities are floored at EPS to keep the
+    logarithm finite.
+
+    Args:
+        probs: Per-match forecasts, each a dict over the outcome classes.
+        outcomes: Realized outcome class for each match.
+
+    Returns:
+        float: Mean negative log-likelihood.
+    """
     return sum(-math.log(max(EPS, p[y])) for p, y in zip(probs, outcomes)) / len(outcomes)
 
 
 def brier_score(probs: list[dict], outcomes: list[str],
                 classes: tuple[str, ...] = CLASSES) -> float:
-    """Multiclass Brier score: mean squared error vs one-hot truth. Lower is better."""
+    """Compute the multiclass Brier score (mean squared error vs one-hot truth).
+
+    Lower is better.
+
+    Args:
+        probs: Per-match forecasts, each a dict over the outcome classes.
+        outcomes: Realized outcome class for each match.
+        classes: The outcome classes to score over.
+
+    Returns:
+        float: Mean squared error against the one-hot true outcomes.
+    """
     return sum(sum((p[c] - (1.0 if c == y else 0.0)) ** 2 for c in classes)
                for p, y in zip(probs, outcomes)) / len(outcomes)
 
 
 def accuracy(probs: list[dict], outcomes: list[str]) -> float:
-    """Share of matches where the argmax-probability class was the actual outcome."""
+    """Compute the share of matches where the most likely class was the outcome.
+
+    Args:
+        probs: Per-match forecasts, each a dict over the outcome classes.
+        outcomes: Realized outcome class for each match.
+
+    Returns:
+        float: Fraction of matches whose argmax-probability class was correct.
+    """
     return sum(1 for p, y in zip(probs, outcomes) if max(p, key=p.get) == y) / len(outcomes)
 
 
 def avg_likelihood(probs: list[dict], outcomes: list[str]) -> float:
-    """Mean predicted probability of the realized outcome (Groll et al.'s 'likelihood').
+    """Compute the mean predicted probability of the realized outcome.
 
-    Higher is better; 1/3 ≈ uninformed for three outcomes.
+    This is Groll et al.'s "likelihood" measure. Higher is better; roughly 1/3 is
+    uninformed for three outcomes.
+
+    Args:
+        probs: Per-match forecasts, each a dict over the outcome classes.
+        outcomes: Realized outcome class for each match.
+
+    Returns:
+        float: Mean probability assigned to the outcome that actually occurred.
     """
     return sum(p[y] for p, y in zip(probs, outcomes)) / len(outcomes)
 
 
 def rps(probs: list[dict], outcomes: list[str],
         order: tuple[str, ...] = CLASSES) -> float:
-    """Mean ranked probability score over ORDERED outcomes (home win > draw > away win).
+    """Compute the mean ranked probability score over ordered outcomes.
 
-    RPS = 1/(K-1) * Σ_k (cumulative_predicted_k − cumulative_observed_k)².
-    Penalizes probability placed far from the true outcome; lower is better.
+    Outcomes are treated as ordered (home win > draw > away win). RPS is
+    1/(K-1) * sum_k (cumulative_predicted_k - cumulative_observed_k)^2, which
+    penalizes probability placed far from the true outcome. Lower is better.
+
+    Args:
+        probs: Per-match forecasts, each a dict over the outcome classes.
+        outcomes: Realized outcome class for each match.
+        order: The outcome classes in rank order.
+
+    Returns:
+        float: Mean ranked probability score.
     """
     k = len(order)
     total = 0.0
@@ -67,10 +123,22 @@ def rps(probs: list[dict], outcomes: list[str],
 
 def paired_logloss_bootstrap(probs_a: list[dict], probs_b: list[dict], outcomes: list[str],
                              n_boot: int = 10000, seed: int = 42) -> dict:
-    """Paired comparison of two models' per-match log-losses (A minus B).
+    """Compare two models' per-match log-losses with a paired bootstrap.
 
-    Returns mean difference and a bootstrap 95% CI. Negative mean = A better.
-    Paired (same matches) so match-difficulty variance cancels out.
+    Works on the per-match log-loss difference (A minus B). Because both models
+    score the same matches, match-difficulty variance cancels out. A negative mean
+    difference means model A is better.
+
+    Args:
+        probs_a: Model A's per-match forecasts, each a dict over the classes.
+        probs_b: Model B's per-match forecasts, each a dict over the classes.
+        outcomes: Realized outcome class for each match.
+        n_boot: Number of bootstrap resamples.
+        seed: Seed for the resampling RNG.
+
+    Returns:
+        dict: {"mean_diff", "ci_low", "ci_high"} for the bootstrap 95% CI of the
+            mean log-loss difference, plus "n" (the number of matches).
     """
     import random
 

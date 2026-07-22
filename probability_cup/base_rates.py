@@ -14,6 +14,19 @@ from wc_trader.data.lineups import load_lineups
 
 
 def _base_minute(raw: str | None) -> int | None:
+    """Parse a goal-minute string into its regulation base minute.
+
+    Reads the leading integer of a minute label so stoppage-time forms collapse
+    onto their base (45'+x -> 45, 90'+x -> 90). Extra-time goals (base > 90) are
+    dropped by returning None.
+
+    Args:
+        raw: The raw minute label from a goal event, possibly None or blank.
+
+    Returns:
+        int | None: The base minute in [0, 90], or None if unparseable or beyond
+            regulation.
+    """
     m = re.match(r"(\d+)", str(raw or "").strip())
     if not m:
         return None
@@ -22,6 +35,20 @@ def _base_minute(raw: str | None) -> int | None:
 
 
 def _match_features(rec: dict) -> dict:
+    """Extract per-match goal-timing and substitute features from a lineup record.
+
+    Walks both sides' goal events (regulation only) and derives goal counts by
+    half, late-window goals, and whether any goal involved a substitute (as
+    scorer or assister).
+
+    Args:
+        rec: A lineup record with "home" and "away" sub-dicts, each holding
+            "players" and "goals" lists.
+
+    Returns:
+        dict: Feature counts and flags keyed by "n_goals", "h1", "h2", "late",
+            and "sub_involved".
+    """
     starters = {
         str(p["id"]): p.get("starter", True)
         for side in ("home", "away")
@@ -48,7 +75,20 @@ def _match_features(rec: dict) -> dict:
 
 
 def compute(years: tuple[int, ...] = (2022, 2026)) -> dict[str, float]:
-    """Aggregate base rates across the given World Cups (played matches only)."""
+    """Aggregate base rates across the given World Cups (played matches only).
+
+    Loads lineups for each year, keeps matches that were actually played (a
+    non-empty home roster), and averages the per-match features into the
+    tournament base rates the exotic-question forecasts rely on.
+
+    Args:
+        years: World Cup years to pool together.
+
+    Returns:
+        dict[str, float]: Base-rate metrics keyed by "n_matches",
+            "goals_per_match", "first_half_goal_share", "p_sub_involved",
+            "p_late_goal", "p_same_goals_each_half", and "p_at_most_2_goals".
+    """
     feats = [
         _match_features(r)
         for y in years
