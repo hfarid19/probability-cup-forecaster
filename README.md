@@ -1,4 +1,4 @@
-# wc-trader
+# World Cup Trader
 
 A football (soccer) match prediction model, rebuilt from a published research paper (Groll,
 Ley, Schauberger & Van Eetvelde, 2019, "A hybrid random forest to predict soccer
